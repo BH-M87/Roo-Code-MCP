@@ -2,6 +2,7 @@ import * as vscode from "vscode"
 import delay from "delay"
 
 import { ClineProvider } from "../core/webview/ClineProvider"
+import { McpServerInstance } from "../services/mcp/McpServerInstance"
 
 /**
  * Helper to get the visible ClineProvider instance or log if not found.
@@ -113,6 +114,50 @@ const getCommandsMap = ({ context, outputChannel, provider }: RegisterCommandOpt
 		"roo-cline.setCustomStoragePath": async () => {
 			const { promptForCustomStoragePath } = await import("../shared/storagePathManager")
 			await promptForCustomStoragePath()
+		},
+		// MCP Server commands
+		"roo-cline.startMcpServer": async () => {
+			try {
+				const mcpServer = await McpServerInstance.getInstance(context, provider, outputChannel)
+				vscode.window.showInformationMessage("Roo Code MCP Server started successfully")
+				outputChannel.appendLine("Roo Code MCP Server started successfully")
+			} catch (error) {
+				const errorMessage = `Failed to start MCP Server: ${error instanceof Error ? error.message : String(error)}`
+				vscode.window.showErrorMessage(errorMessage)
+				outputChannel.appendLine(errorMessage)
+			}
+		},
+		"roo-cline.configureMcpServer": async () => {
+			try {
+				// Show a quick pick to select transport type
+				const transportType = await vscode.window.showQuickPick(
+					[
+						{ label: "stdio", description: "Standard input/output transport" },
+						{ label: "sse", description: "Server-Sent Events transport" },
+					],
+					{
+						placeHolder: "Select MCP Server transport type",
+						title: "Configure MCP Server",
+					}
+				)
+
+				if (!transportType) {
+					return // User cancelled
+				}
+
+				// Save the configuration
+				await McpServerInstance.saveConfig({
+					transportType: transportType.label as "stdio" | "sse",
+				})
+
+				vscode.window.showInformationMessage(
+					`MCP Server configuration updated. Transport type: ${transportType.label}. Restart the server to apply changes.`
+				)
+			} catch (error) {
+				const errorMessage = `Failed to configure MCP Server: ${error instanceof Error ? error.message : String(error)}`
+				vscode.window.showErrorMessage(errorMessage)
+				outputChannel.appendLine(errorMessage)
+			}
 		},
 	}
 }

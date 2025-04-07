@@ -1,9 +1,9 @@
 {
-	"name": "roo-cline",
-	"displayName": "Roo Code (prev. Roo Cline)",
-	"description": "A whole dev team of AI agents in your editor.",
+	"name": "roo-code-mcp",
+	"displayName": "RooCode with MCP",
+	"description": "A whole dev team of AI agents in your editor with MCP server for Roo Code to enable external control via MCP clients.",
 	"publisher": "RooVeterinaryInc",
-	"version": "3.11.8",
+	"version": "0.0.1",
 	"icon": "assets/icons/icon.png",
 	"galleryBanner": {
 		"color": "#617A91",
@@ -144,6 +144,16 @@
 				"command": "roo-cline.newTask",
 				"title": "New Task",
 				"category": "Roo Code"
+			},
+			{
+				"command": "roo-cline.startMcpServer",
+				"title": "Start MCP Server",
+				"category": "Roo Code MCP"
+			},
+			{
+				"command": "roo-cline.configureMcpServer",
+				"title": "Configure MCP Server",
+				"category": "Roo Code MCP"
 			},
 			{
 				"command": "roo-cline.terminalAddToContext",
@@ -373,6 +383,7 @@
 		"version-packages": "changeset version && npm install --package-lock-only",
 		"vscode:prepublish": "npm run package",
 		"vsix": "rimraf bin && mkdirp bin && npx vsce package --out bin",
+		"build-extension-only": "node scripts/build-extension-only.js",
 		"watch": "npm-run-all -l -p watch:*",
 		"watch:esbuild": "node esbuild.js --watch",
 		"watch:tsc": "tsc --noEmit --watch --project tsconfig.json",
@@ -419,6 +430,7 @@
 		"get-folder-size": "^5.0.0",
 		"globby": "^14.0.2",
 		"i18next": "^24.2.2",
+		"ignore": "^7.0.3",
 		"isbinaryfile": "^5.0.2",
 		"js-tiktoken": "^1.0.19",
 		"mammoth": "^1.8.0",

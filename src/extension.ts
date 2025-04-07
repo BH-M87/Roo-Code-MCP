@@ -19,6 +19,7 @@ import { ClineProvider } from "./core/webview/ClineProvider"
 import { CodeActionProvider } from "./core/CodeActionProvider"
 import { DIFF_VIEW_URI_SCHEME } from "./integrations/editor/DiffViewProvider"
 import { McpServerManager } from "./services/mcp/McpServerManager"
+import { McpServerInstance } from "./services/mcp/McpServerInstance"
 import { telemetryService } from "./services/telemetry/TelemetryService"
 import { TerminalRegistry } from "./integrations/terminal/TerminalRegistry"
 import { API } from "./exports/api"
@@ -115,6 +116,15 @@ export async function activate(context: vscode.ExtensionContext) {
 	registerCodeActions(context)
 	registerTerminalActions(context)
 
+	// Initialize MCP server
+	try {
+		await McpServerInstance.getInstance(context, provider, outputChannel)
+		outputChannel.appendLine("MCP Server initialized successfully")
+	} catch (error) {
+		outputChannel.appendLine(`Failed to initialize MCP Server: ${error instanceof Error ? error.message : String(error)}`)
+		console.error("Failed to initialize MCP Server:", error)
+	}
+
 	// Allows other extensions to activate once Roo is ready.
 	vscode.commands.executeCommand("roo-cline.activationCompleted")
 
@@ -129,6 +139,10 @@ export async function deactivate() {
 	outputChannel.appendLine("Roo-Code extension deactivated")
 	// Clean up MCP server manager
 	await McpServerManager.cleanup(extensionContext)
+
+	// Clean up MCP server instance
+	await McpServerInstance.cleanup()
+
 	telemetryService.shutdown()
 
 	// Clean up terminal handlers
