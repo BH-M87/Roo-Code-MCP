@@ -20,6 +20,7 @@ import { CodeActionProvider } from "./core/CodeActionProvider"
 import { DIFF_VIEW_URI_SCHEME } from "./integrations/editor/DiffViewProvider"
 import { McpServerManager } from "./services/mcp/McpServerManager"
 import { McpServerInstance } from "./services/mcp/McpServerInstance"
+import { McpNodeServer } from "./services/mcp/McpNodeServer"
 import { telemetryService } from "./services/telemetry/TelemetryService"
 import { TerminalRegistry } from "./integrations/terminal/TerminalRegistry"
 import { API } from "./exports/api"
@@ -116,12 +117,20 @@ export async function activate(context: vscode.ExtensionContext) {
 	registerCodeActions(context)
 	registerTerminalActions(context)
 
-	// Initialize MCP server
+	// Initialize MCP servers
 	try {
+		// Start the Node.js MCP server
+		const mcpNodeServer = McpNodeServer.getInstance(outputChannel)
+		const port = await mcpNodeServer.start()
+		outputChannel.appendLine(`MCP Node Server started on port ${port}`)
+
+		// Initialize the VS Code MCP server
 		await McpServerInstance.getInstance(context, provider, outputChannel)
 		outputChannel.appendLine("MCP Server initialized successfully")
 	} catch (error) {
-		outputChannel.appendLine(`Failed to initialize MCP Server: ${error instanceof Error ? error.message : String(error)}`)
+		outputChannel.appendLine(
+			`Failed to initialize MCP Server: ${error instanceof Error ? error.message : String(error)}`,
+		)
 		console.error("Failed to initialize MCP Server:", error)
 	}
 
@@ -142,6 +151,18 @@ export async function deactivate() {
 
 	// Clean up MCP server instance
 	await McpServerInstance.cleanup()
+
+	// Stop the Node.js MCP server
+	try {
+		const mcpNodeServer = McpNodeServer.getInstance(outputChannel)
+		await mcpNodeServer.stop()
+		outputChannel.appendLine("MCP Node Server stopped")
+	} catch (error) {
+		outputChannel.appendLine(
+			`Failed to stop MCP Node Server: ${error instanceof Error ? error.message : String(error)}`,
+		)
+		console.error("Failed to stop MCP Node Server:", error)
+	}
 
 	telemetryService.shutdown()
 
