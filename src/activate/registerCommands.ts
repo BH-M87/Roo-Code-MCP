@@ -117,6 +117,44 @@ const getCommandsMap = ({ context, outputChannel, provider }: RegisterCommandOpt
 		"roo-cline.focusInput": () => {
 			provider.postMessageToWebview({ type: "action", action: "focusInput" })
 		},
+		"roo-cline.startMcpServer": async () => {
+			try {
+				const { McpNodeServer } = await import("../services/mcp/McpNodeServer")
+				const mcpNodeServer = McpNodeServer.getInstance(context, outputChannel)
+				await mcpNodeServer.startServer()
+				const serverUrl = mcpNodeServer.getServerUrl()
+				vscode.window.showInformationMessage(`MCP server started successfully at ${serverUrl}`)
+			} catch (error) {
+				vscode.window.showErrorMessage(
+					`Failed to start MCP server: ${error instanceof Error ? error.message : String(error)}`,
+				)
+			}
+		},
+		"roo-cline.stopMcpServer": async () => {
+			try {
+				const { McpNodeServer } = await import("../services/mcp/McpNodeServer")
+				const mcpNodeServer = McpNodeServer.getInstance(context, outputChannel)
+				await mcpNodeServer.stopServer()
+				vscode.window.showInformationMessage("MCP server stopped successfully")
+			} catch (error) {
+				vscode.window.showErrorMessage(
+					`Failed to stop MCP server: ${error instanceof Error ? error.message : String(error)}`,
+				)
+			}
+		},
+		"roo-cline.restartMcpServer": async () => {
+			try {
+				const { McpNodeServer } = await import("../services/mcp/McpNodeServer")
+				const mcpNodeServer = McpNodeServer.getInstance(context, outputChannel)
+				await mcpNodeServer.restartServer()
+				const serverUrl = mcpNodeServer.getServerUrl()
+				vscode.window.showInformationMessage(`MCP server restarted successfully at ${serverUrl}`)
+			} catch (error) {
+				vscode.window.showErrorMessage(
+					`Failed to restart MCP server: ${error instanceof Error ? error.message : String(error)}`,
+				)
+			}
+		},
 	}
 }
 

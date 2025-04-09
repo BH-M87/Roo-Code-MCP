@@ -12,14 +12,16 @@ This project implements an MCP (Model Context Protocol) server for the Roo Code 
 ## Setup
 
 1. Make the setup script executable:
-   ```
-   chmod +x setup.sh
-   ```
+
+    ```
+    chmod +x setup.sh
+    ```
 
 2. Run the setup script:
-   ```
-   ./setup.sh
-   ```
+
+    ```
+    ./setup.sh
+    ```
 
 3. Open the project in VSCode and run the extension
 
@@ -33,10 +35,10 @@ This project implements an MCP (Model Context Protocol) server for the Roo Code 
 ### Project Structure
 
 - `src/`: VSCode extension source code
-  - `services/mcp/`: MCP integration with VSCode
+    - `services/mcp/`: MCP integration with VSCode
 - `server/`: MCP server implementation
-  - `src/`: Server source code
-  - `dist/`: Compiled server code
+    - `src/`: Server source code
+    - `dist/`: Compiled server code
 
 ### Building
 
@@ -79,21 +81,30 @@ If you encounter issues:
 
 1. Check the VSCode output panel for error messages
 
-2. If you get a "command 'roo-cline.restartMcpServer' not found" error:
-   ```
-   ./fix-command.sh
-   ```
-   Then restart VSCode
+2. If you get a "command not found" error for any of the MCP server commands:
+
+    - `roo-cline.startMcpServer`: Start the MCP server
+    - `roo-cline.stopMcpServer`: Stop the MCP server
+    - `roo-cline.restartMcpServer`: Restart the MCP server
+
+    Run the fix-command script:
+
+    ```
+    ./fix-command.sh
+    ```
+
+    Then restart VSCode
 
 3. Run the fix-permissions script to fix permission issues:
-   ```
-   ./fix-permissions.sh
-   ```
+
+    ```
+    ./fix-permissions.sh
+    ```
 
 4. Rebuild the server:
-   ```
-   cd server && ./build.sh
-   ```
+    ```
+    cd server && ./build.sh
+    ```
 
 ## License
 

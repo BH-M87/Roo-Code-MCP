@@ -179,6 +179,21 @@
 				"command": "roo-cline.focusInput",
 				"title": "Focus Input Field",
 				"category": "Roo Code"
+			},
+			{
+				"command": "roo-cline.startMcpServer",
+				"title": "Start MCP Server",
+				"category": "Roo Code"
+			},
+			{
+				"command": "roo-cline.stopMcpServer",
+				"title": "Stop MCP Server",
+				"category": "Roo Code"
+			},
+			{
+				"command": "roo-cline.restartMcpServer",
+				"title": "Restart MCP Server",
+				"category": "Roo Code"
 			}
 		],
 		"menus": {
