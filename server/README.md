@@ -38,9 +38,11 @@ This is an MCP (Model Context Protocol) server for the Roo Code VSCode extension
 
 The server is automatically started by the Roo Code extension. However, you can also run it manually for testing:
 
-```
+```bash
 npm run start
 ```
+
+The server runs on port 5201 by default. You can access it at http://localhost:5201 when it's running.
 
 ## Tools
 

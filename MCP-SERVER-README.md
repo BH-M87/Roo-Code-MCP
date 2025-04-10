@@ -63,6 +63,8 @@ The MCP server is implemented using:
 - @modelcontextprotocol/sdk for the MCP implementation
 - SSE (Server-Sent Events) for the transport layer
 
+The server runs on port 5201 by default. You can access it at http://localhost:5201 when it's running.
+
 ### Available Tools
 
 The server provides the following tools:

@@ -1,16 +1,33 @@
 import express from "express"
 import cors from "cors"
-import bodyParser from "body-parser"
 import { Server } from "@modelcontextprotocol/sdk/server/index.js"
 import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js"
-import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js"
+import { initializeBridge, setLogger as setBridgeLogger } from "./vscode-bridge"
+import { parseMessage, stringifyMessage, MessageType } from "./communication"
+import { Logger } from "./server-manager"
 
-// Type declarations
+// Create a default logger that uses console
+let logger: Logger = {
+	log: (message: string) => console.log(message),
+	error: (message: string) => console.error(message),
+}
+
+// Function to set the logger from outside
+export function setLogger(newLogger: Logger): void {
+	logger = newLogger
+	logger.log("Logger set in MCP server")
+
+	// Also set the logger in vscode-bridge
+	try {
+		setBridgeLogger(newLogger)
+	} catch (error) {
+		logger.error(`Failed to set logger in vscode-bridge: ${error instanceof Error ? error.message : String(error)}`)
+	}
+}
 
 // Create Express app
 const app = express()
 app.use(cors())
-app.use(bodyParser.json())
 
 // Create MCP server
 const server = new Server(
@@ -25,98 +42,115 @@ const server = new Server(
 	},
 )
 
-// Store active transport
-let activeTransport: SSEServerTransport | null = null
+let transport: SSEServerTransport | null = null
 
-// Define tools
-server.setRequestHandler(ListToolsRequestSchema, async () => {
-	return {
-		tools: [],
-	}
-})
+// Initialize the bridge between VSCode and the MCP server
+initializeBridge()
 
-// Tool handlers
-server.setRequestHandler(CallToolRequestSchema, async (request) => {
-	const { name, arguments: args = {} } = request.params
-
-	try {
-		let result
-
-		switch (name) {
-			case "execute-command":
-				result = "result of execute-command"
-				break
-
-			default:
-				throw new Error(`Unknown tool: ${name}`)
-		}
-
-		return {
-			content: [
-				{
-					type: "text",
-					text: typeof result === "string" ? result : JSON.stringify(result, null, 2),
-				},
-			],
-		}
-	} catch (error) {
-		return {
-			content: [
-				{
-					type: "text",
-					text: `Error executing tool ${name}: ${error instanceof Error ? error.message : String(error)}`,
-				},
-			],
-			isError: true,
+// Set up process message handling for communication with VSCode extension
+process.on("message", (message) => {
+	if (typeof message === "string") {
+		try {
+			const parsedMessage = parseMessage(message)
+			if (parsedMessage) {
+				logger.log(`Received message from extension: ${parsedMessage.type}`)
+			}
+		} catch (error) {
+			logger.error(
+				`Error parsing message from extension: ${error instanceof Error ? error.message : String(error)}`,
+			)
 		}
 	}
 })
+
+// Send a startup message to the extension
+if (process.send) {
+	process.send(
+		stringifyMessage({
+			type: MessageType.GET_COMMANDS,
+		}),
+	)
+	logger.log("Sent GET_COMMANDS message to extension")
+} else {
+	logger.error("Cannot communicate with VSCode extension: process.send is not available")
+}
 
 // Set up SSE endpoint
-app.get("/sse", (req: express.Request, res: express.Response) => {
-	console.log("Client connected to SSE endpoint")
-
-	// Set headers for SSE
-	res.setHeader("Content-Type", "text/event-stream")
-	res.setHeader("Cache-Control", "no-cache")
-	res.setHeader("Connection", "keep-alive")
+app.get("/sse", async (req: express.Request, res: express.Response) => {
+	logger.log("Client connected to SSE endpoint")
 
 	// Create new transport
-	activeTransport = new SSEServerTransport("/messages", res)
+	transport = new SSEServerTransport("/messages", res)
 
 	// Connect server to transport
-	server.connect(activeTransport).catch((error) => {
-		console.error("Failed to connect server to transport:", error)
-	})
+	await server
+		.connect(transport)
+		.then(() => {
+			logger.log("Server successfully connected to transport")
+
+			// Send a welcome message to confirm the connection is working
+			// setTimeout(() => {
+			// 	if (transport) {
+			// 		try {
+			// 			logger.log("Sent connected event to client")
+
+			// 			// Start sending heartbeats to keep the connection alive
+			// 			startHeartbeat(res)
+			// 		} catch (err) {
+			// 			logger.error(
+			// 				`Error sending connected event: ${err instanceof Error ? err.message : String(err)}`,
+			// 			)
+			// 		}
+			// 	}
+			// }, 100) // Small delay to ensure everything is set up
+		})
+		.catch((error) => {
+			logger.error(
+				`Failed to connect server to transport: ${error instanceof Error ? error.message : String(error)}`,
+			)
+		})
 
 	// Handle client disconnect
 	req.on("close", () => {
-		console.log("Client disconnected from SSE endpoint")
-		if (activeTransport) {
-			activeTransport.close().catch((error) => {
-				console.error("Error closing transport:", error)
-			})
-			activeTransport = null
-		}
+		logger.log("Client disconnected from SSE endpoint")
 	})
 })
 
 // Handle client-to-server messages
-app.post("/messages", (req: express.Request, res: express.Response) => {
-	if (activeTransport) {
-		activeTransport.handlePostMessage(req, res)
-	} else {
-		res.status(503).json({ error: "No active SSE connection" })
+app.post("/messages", async (req: express.Request, res: express.Response) => {
+	if (!transport) {
+		logger.error("Transport not initialized")
+		return
 	}
+	await transport.handlePostMessage(req, res)
 })
 
 // Health check endpoint
 app.get("/health", (_req: express.Request, res: express.Response) => {
-	res.json({ status: "ok", connected: activeTransport !== null })
+	res.json({
+		status: "ok",
+		connected: transport !== null,
+		version: "1.0.0",
+		name: "roo-code-mcp",
+	})
+})
+
+// API info endpoint
+app.get("/", (_req: express.Request, res: express.Response) => {
+	res.json({
+		name: "Roo Code MCP Server",
+		version: "1.0.0",
+		description: "MCP server for Roo Code VSCode extension",
+		endpoints: [
+			{ path: "/sse", description: "SSE endpoint for MCP communication" },
+			{ path: "/messages", description: "Endpoint for client-to-server messages" },
+			{ path: "/health", description: "Health check endpoint" },
+		],
+	})
 })
 
 // Start server
-const PORT = process.env.PORT || 3000
+const PORT = process.env.PORT || 5201
 
 // Export the app and server for use in the extension
 export { app, server }
@@ -124,6 +158,6 @@ export { app, server }
 // Only start the server if this file is run directly
 if (require.main === module) {
 	app.listen(PORT, () => {
-		console.log(`MCP server running on http://localhost:${PORT}`)
+		logger.log(`MCP server running on http://localhost:${PORT}`)
 	})
 }
