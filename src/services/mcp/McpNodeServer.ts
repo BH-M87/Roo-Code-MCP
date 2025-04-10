@@ -89,20 +89,50 @@ export class McpNodeServer {
 	/**
 	 * Execute a command
 	 * @param command The command to execute
-	 * @param args The command arguments
+	 * @param args The command arguments (can be array, object, or primitive value)
 	 * @returns The command result
 	 */
-	private async executeCommand(command: string, args: any[]): Promise<any> {
+	private async executeCommand(command: string, args: any): Promise<any> {
 		this.outputChannel.appendLine(`Executing command: ${command} with args: ${JSON.stringify(args)}`)
 
+		// 通用参数处理逻辑
+		const executeWithArgs = async (fn: Function, args: any): Promise<any> => {
+			// 如果参数是数组，使用展开运算符
+			if (Array.isArray(args)) {
+				this.outputChannel.appendLine(`Executing with spread array args: ${JSON.stringify(args)}`)
+				return await fn(...args)
+			}
+			// 如果参数是对象且不为null，直接传递对象
+			else if (args !== null && typeof args === "object") {
+				this.outputChannel.appendLine(`Executing with object args: ${JSON.stringify(args)}`)
+				return await fn(args)
+			}
+			// 如果参数是undefined或null，不传参数
+			else if (args === undefined || args === null) {
+				this.outputChannel.appendLine(`Executing with no args`)
+				return await fn()
+			}
+			// 其他情况（基本类型），直接传递值
+			else {
+				this.outputChannel.appendLine(`Executing with primitive arg: ${args}`)
+				return await fn(args)
+			}
+		}
+
+		// 根据命令类型选择执行方式
 		if (this.commandsMap[command]) {
-			return await this.commandsMap[command](...args)
+			// 执行内部命令
+			return await executeWithArgs(this.commandsMap[command], args)
 		} else if (command.startsWith("vscode.")) {
-			// Execute VSCode command
-			return await vscode.commands.executeCommand(command.substring(7), ...args)
+			// 执行VSCode命令
+			const vsCommand = command.substring(7)
+			return await executeWithArgs(
+				(...params: any[]) => vscode.commands.executeCommand(vsCommand, ...params),
+				args,
+			)
 		} else {
-			// Try to execute as a VSCode command
-			return await vscode.commands.executeCommand(command, ...args)
+			// 尝试执行其他VSCode命令
+			return await executeWithArgs((...params: any[]) => vscode.commands.executeCommand(command, ...params), args)
 		}
 	}
 

@@ -151,22 +151,50 @@ export function initializeBridge(): void {
 	// Override the ListToolsRequestSchema handler to list all available tools
 	server.setRequestHandler(ListToolsRequestSchema, async () => {
 		return {
-			tools: availableCommands.map((command) => ({
-				name: command.name,
-				description: command.description,
-				inputSchema: {
-					type: "object",
-					properties: {
-						args: {
-							type: "array",
-							items: {
-								type: ["string", "number", "boolean", "object", "array", "null"],
+			tools: availableCommands.map((command) => {
+				// Special handling for roo-cline.newTask command
+				if (command.name === "roo-cline.newTask") {
+					return {
+						name: command.name,
+						description: command.description,
+						inputSchema: {
+							type: "object",
+							properties: {
+								prompt: {
+									type: "string",
+									description: "The prompt text for the new task",
+								},
+								args: {
+									type: "array",
+									items: {
+										type: ["string", "number", "boolean", "object", "array", "null"],
+									},
+									description:
+										"Arguments to pass to the command (first argument can be used as prompt)",
+								},
 							},
-							description: "Arguments to pass to the command",
 						},
-					},
-				},
-			})),
+					}
+				} else {
+					// Default schema for other commands
+					return {
+						name: command.name,
+						description: command.description,
+						inputSchema: {
+							type: "object",
+							properties: {
+								args: {
+									type: "array",
+									items: {
+										type: ["string", "number", "boolean", "object", "array", "null"],
+									},
+									description: "Arguments to pass to the command",
+								},
+							},
+						},
+					}
+				}
+			}),
 		}
 	})
 
@@ -188,8 +216,38 @@ export function initializeBridge(): void {
 		}
 
 		try {
-			const result = await handler(args.args || [])
+			// 通用参数处理逻辑
+			let commandArgs
 
+			// 特殊处理 roo-cline.newTask 命令
+			if (name === "roo-cline.newTask") {
+				// 从args中提取prompt参数
+				const promptArg =
+					args.prompt || (Array.isArray(args.args) && args.args.length > 0 ? args.args[0] : null)
+
+				// 创建包含prompt的参数对象
+				commandArgs = promptArg ? { prompt: promptArg } : null
+				logger.log(`Executing newTask with prompt: ${JSON.stringify(commandArgs)}`)
+			}
+			// 处理其他命令
+			else {
+				// 优先使用args.args数组，如果不存在则检查其他属性
+				if (Array.isArray(args.args)) {
+					commandArgs = args.args
+				}
+				// 如果args本身有其他属性（除了args），则传递整个args对象
+				else if (Object.keys(args).filter((key) => key !== "args").length > 0) {
+					commandArgs = args
+				}
+				// 默认传递空数组
+				else {
+					commandArgs = []
+				}
+				logger.log(`Executing command with args: ${JSON.stringify(commandArgs)}`)
+			}
+
+			// 执行命令并返回结果
+			const result = await handler(commandArgs)
 			return {
 				content: [
 					{

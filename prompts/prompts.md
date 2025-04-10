@@ -10,3 +10,7 @@
 2. getCommandsMap 中的所有方法，能够暴露给调用 mcp server 的 client，让它能够选择合适的方法来调用 RooCode
 3. 这个 MCP Server 是从 child_process 中启动的，所以在 src/services/mcp/McpNodeServer.ts 中他能与 RooCode 进行通信
 4. mcp server 基于 sse 的方式实现，要保证它能够被顺利的调用
+
+========
+
+通过 mcp 方式调用 roo-cline.newTask 的时候，能够提供一个 prompt 的参数，如果用户调用的时候提供了，则传给 handleNewTask 方法
