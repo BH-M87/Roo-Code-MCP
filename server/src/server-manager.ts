@@ -1,4 +1,4 @@
-import { ChildProcess, spawn } from "child_process"
+import { ChildProcess, fork } from "child_process"
 import * as path from "path"
 import * as fs from "fs"
 
@@ -7,6 +7,9 @@ export interface Logger {
 	log(message: string): void
 	error(message: string): void
 }
+
+// Define a message handler type
+export type MessageHandler = (message: string) => void
 
 /**
  * Manager for the MCP server process
@@ -17,6 +20,7 @@ export class McpServerManager {
 	private serverUrl: string
 	private extensionPath: string
 	private logger: Logger
+	private messageHandler: MessageHandler | null = null
 
 	/**
 	 * Create a new server manager
@@ -53,13 +57,29 @@ export class McpServerManager {
 				return reject(new Error(`Server file not found: ${serverPath}`))
 			}
 
-			// Start the server process
-			this.serverProcess = spawn("node", [serverPath], {
+			// Import the server module to set the logger
+			try {
+				// Try to import the server module to set the logger
+				const serverModule = require(serverPath)
+				if (typeof serverModule.setLogger === "function") {
+					serverModule.setLogger(this.logger)
+					this.logger.log("Logger set in server module")
+				}
+			} catch (error) {
+				this.logger.error(
+					`Failed to import server module: ${error instanceof Error ? error.message : String(error)}`,
+				)
+			}
+
+			// Start the server process with IPC for communication
+			// Use fork instead of spawn to enable IPC
+			this.serverProcess = fork(serverPath, [], {
 				env: {
 					...process.env,
 					PORT: this.serverPort.toString(),
 				},
-				stdio: ["ignore", "pipe", "pipe"],
+				// Enable stdio and IPC
+				stdio: ["pipe", "pipe", "pipe", "ipc"],
 			})
 
 			// Handle server output
@@ -85,6 +105,11 @@ export class McpServerManager {
 				this.serverProcess = null
 				reject(error)
 			})
+
+			// If a message handler is set, set it up for the new process
+			if (this.messageHandler) {
+				this.setMessageHandler(this.messageHandler)
+			}
 
 			// Wait for the server to start
 			setTimeout(() => {
@@ -154,5 +179,69 @@ export class McpServerManager {
 	 */
 	isRunning(): boolean {
 		return this.serverProcess !== null
+	}
+
+	/**
+	 * Set a handler for messages from the server
+	 * @param handler The message handler
+	 */
+	setMessageHandler(handler: MessageHandler): void {
+		this.messageHandler = handler
+		this.logger.log("Message handler set")
+
+		// Set up message handling for the server process
+		if (this.serverProcess) {
+			// Set up IPC message handling
+			this.serverProcess.on("message", (message: any) => {
+				if (typeof message === "string" && this.messageHandler) {
+					try {
+						this.messageHandler(message)
+					} catch (error) {
+						this.logger.error(
+							`Error handling IPC message: ${error instanceof Error ? error.message : String(error)}`,
+						)
+					}
+				}
+			})
+
+			// Also keep stdout handling for backward compatibility and logging
+			this.serverProcess.stdout?.on("data", (data: Buffer) => {
+				const message = data.toString().trim()
+				if (message.startsWith("{") && this.messageHandler) {
+					try {
+						this.messageHandler(message)
+					} catch (error) {
+						this.logger.error(
+							`Error handling stdout message: ${error instanceof Error ? error.message : String(error)}`,
+						)
+					}
+				}
+			})
+		}
+	}
+
+	/**
+	 * Send a message to the server
+	 * @param message The message to send
+	 */
+	sendMessageToServer(message: string): void {
+		if (!this.serverProcess) {
+			this.logger.error("Cannot send message: server not running")
+			return
+		}
+
+		try {
+			// Use IPC to send messages to the child process
+			if (this.serverProcess.send) {
+				this.serverProcess.send(message)
+				this.logger.log("Message sent to server via IPC")
+			} else {
+				this.logger.error("Cannot send message: IPC channel not available")
+			}
+		} catch (error) {
+			this.logger.error(
+				`Error sending message to server: ${error instanceof Error ? error.message : String(error)}`,
+			)
+		}
 	}
 }

@@ -76,7 +76,7 @@ export async function activate(context: vscode.ExtensionContext) {
 		}),
 	)
 
-	registerCommands({ context, outputChannel, provider })
+	await registerCommands({ context, outputChannel, provider })
 
 	/**
 	 * We use the text document content provider API to show the left side for diff

@@ -2,6 +2,7 @@ import * as vscode from "vscode"
 import * as path from "path"
 import * as fs from "fs"
 import { McpServerManager, Logger } from "../../../server/src/server-manager"
+import { MessageType, parseMessage, stringifyMessage, CommunicationMessage } from "../../../server/src/communication"
 
 /**
  * Manages the Node.js MCP server that runs alongside the extension
@@ -12,6 +13,7 @@ export class McpNodeServer {
 	private statusBarItem: vscode.StatusBarItem
 	private extensionPath: string
 	private outputChannel: vscode.OutputChannel
+	private commandsMap: Record<string, (...args: any[]) => any> = {}
 
 	private constructor(context: vscode.ExtensionContext, outputChannel: vscode.OutputChannel) {
 		this.outputChannel = outputChannel
@@ -42,6 +44,143 @@ export class McpNodeServer {
 	}
 
 	/**
+	 * Set the commands map
+	 * @param commandsMap The commands map
+	 */
+	public setCommandsMap(commandsMap: Record<string, (...args: any[]) => any>): void {
+		this.commandsMap = commandsMap
+		this.outputChannel.appendLine(`Registered ${Object.keys(commandsMap).length} commands with MCP server`)
+	}
+
+	/**
+	 * Handle messages from the MCP server
+	 * @param message The message from the server
+	 */
+	private handleServerMessage(message: CommunicationMessage): void {
+		this.outputChannel.appendLine(`Received message from server: ${message.type}`)
+
+		switch (message.type) {
+			case MessageType.GET_COMMANDS:
+				// Send the list of available commands to the server
+				this.sendCommandsList()
+				break
+
+			case MessageType.EXECUTE_COMMAND:
+				if ("command" in message) {
+					// Execute the command and send the result back to the server
+					this.executeCommand(message.command, message.args || [])
+						.then((result) => {
+							this.sendCommandResult(message.command, result)
+						})
+						.catch((error) => {
+							this.sendCommandError(
+								message.command,
+								error instanceof Error ? error.message : String(error),
+							)
+						})
+				}
+				break
+
+			default:
+				this.outputChannel.appendLine(`Unknown message type: ${message.type}`)
+		}
+	}
+
+	/**
+	 * Execute a command
+	 * @param command The command to execute
+	 * @param args The command arguments
+	 * @returns The command result
+	 */
+	private async executeCommand(command: string, args: any[]): Promise<any> {
+		this.outputChannel.appendLine(`Executing command: ${command} with args: ${JSON.stringify(args)}`)
+
+		if (this.commandsMap[command]) {
+			return await this.commandsMap[command](...args)
+		} else if (command.startsWith("vscode.")) {
+			// Execute VSCode command
+			return await vscode.commands.executeCommand(command.substring(7), ...args)
+		} else {
+			// Try to execute as a VSCode command
+			return await vscode.commands.executeCommand(command, ...args)
+		}
+	}
+
+	/**
+	 * Send the list of available commands to the server
+	 */
+	private sendCommandsList(): void {
+		if (!this.serverManager || !this.serverManager.isRunning()) {
+			this.outputChannel.appendLine("Cannot send commands list: server not running")
+			return
+		}
+
+		const commands = Object.keys(this.commandsMap).map((name) => ({
+			name,
+			description: `Execute the ${name} command`,
+		}))
+
+		// Add VSCode commands
+		commands.push({
+			name: "vscode.executeCommand",
+			description: "Execute a VSCode command",
+		})
+
+		this.serverManager.sendMessageToServer(
+			stringifyMessage({
+				type: MessageType.COMMANDS_LIST,
+				commands,
+			}),
+		)
+
+		this.outputChannel.appendLine(`Sent ${commands.length} commands to server`)
+	}
+
+	/**
+	 * Send a command result to the server
+	 * @param command The command that was executed
+	 * @param result The command result
+	 */
+	private sendCommandResult(command: string, result: any): void {
+		if (!this.serverManager || !this.serverManager.isRunning()) {
+			this.outputChannel.appendLine("Cannot send command result: server not running")
+			return
+		}
+
+		this.serverManager.sendMessageToServer(
+			stringifyMessage({
+				type: MessageType.COMMAND_RESULT,
+				requestId: Date.now().toString(),
+				result,
+			}),
+		)
+
+		this.outputChannel.appendLine(`Sent result for command: ${command}`)
+	}
+
+	/**
+	 * Send a command error to the server
+	 * @param command The command that failed
+	 * @param error The error message
+	 */
+	private sendCommandError(command: string, error: string): void {
+		if (!this.serverManager || !this.serverManager.isRunning()) {
+			this.outputChannel.appendLine("Cannot send command error: server not running")
+			return
+		}
+
+		this.serverManager.sendMessageToServer(
+			stringifyMessage({
+				type: MessageType.COMMAND_ERROR,
+				requestId: Date.now().toString(),
+				error,
+			}),
+		)
+
+		this.outputChannel.appendLine(`Sent error for command: ${command}: ${error}`)
+	}
+
+	/**
 	 * Start the MCP server
 	 */
 	public async startServer(): Promise<void> {
@@ -57,7 +196,21 @@ export class McpNodeServer {
 			}
 
 			// Create server manager with the logger
-			this.serverManager = new McpServerManager(this.extensionPath, 3000, logger)
+			this.serverManager = new McpServerManager(this.extensionPath, 5201, logger)
+
+			// Set up message handler
+			this.serverManager.setMessageHandler((message: string) => {
+				try {
+					const parsedMessage = parseMessage(message)
+					if (parsedMessage) {
+						this.handleServerMessage(parsedMessage)
+					}
+				} catch (error) {
+					this.outputChannel.appendLine(
+						`Error parsing message from server: ${error instanceof Error ? error.message : String(error)}`,
+					)
+				}
+			})
 
 			// Update status
 			this.statusBarItem.text = "$(server) MCP: Starting..."

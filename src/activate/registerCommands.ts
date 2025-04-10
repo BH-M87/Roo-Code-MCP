@@ -52,11 +52,26 @@ export type RegisterCommandOptions = {
 	provider: ClineProvider
 }
 
-export const registerCommands = (options: RegisterCommandOptions) => {
+export const registerCommands = async (options: RegisterCommandOptions) => {
 	const { context, outputChannel } = options
 
-	for (const [command, callback] of Object.entries(getCommandsMap(options))) {
+	// Get the commands map
+	const commandsMap = getCommandsMap(options)
+
+	// Register all commands
+	for (const [command, callback] of Object.entries(commandsMap)) {
 		context.subscriptions.push(vscode.commands.registerCommand(command, callback))
+	}
+
+	// Set the commands map in the MCP server
+	try {
+		const { McpNodeServer } = await import("../services/mcp/McpNodeServer")
+		const mcpNodeServer = McpNodeServer.getInstance(context, outputChannel)
+		mcpNodeServer.setCommandsMap(commandsMap)
+	} catch (error) {
+		outputChannel.appendLine(
+			`Failed to set commands map in MCP server: ${error instanceof Error ? error.message : String(error)}`,
+		)
 	}
 }
 
