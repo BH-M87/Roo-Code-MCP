@@ -5,6 +5,7 @@ import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js"
 import { initializeBridge, setLogger as setBridgeLogger } from "./vscode-bridge"
 import { parseMessage, stringifyMessage, MessageType } from "./communication"
 import { Logger } from "./server-manager"
+import { isPortInUse, killProcessOnPort } from "./utils/port-utils"
 
 // Create a default logger that uses console
 let logger: Logger = {
@@ -155,9 +156,38 @@ const PORT = process.env.PORT || 5201
 // Export the app and server for use in the extension
 export { app, server }
 
+/**
+ * Start the server with port conflict handling
+ */
+async function startServer(port: number): Promise<void> {
+	try {
+		// Check if port is in use
+		const portInUse = await isPortInUse(port)
+
+		if (portInUse) {
+			logger.log(`Port ${port} is already in use. Attempting to terminate the existing process...`)
+			await killProcessOnPort(port, logger)
+
+			// Check again after killing
+			const stillInUse = await isPortInUse(port)
+			if (stillInUse) {
+				logger.error(
+					`Port ${port} is still in use after attempting to kill the process. Please close the application using this port.`,
+				)
+				return
+			}
+		}
+
+		// Start the server
+		app.listen(port, () => {
+			logger.log(`MCP server running on http://localhost:${port}`)
+		})
+	} catch (error) {
+		logger.error(`Failed to start server: ${error instanceof Error ? error.message : String(error)}`)
+	}
+}
+
 // Only start the server if this file is run directly
 if (require.main === module) {
-	app.listen(PORT, () => {
-		logger.log(`MCP server running on http://localhost:${PORT}`)
-	})
+	startServer(Number(PORT))
 }

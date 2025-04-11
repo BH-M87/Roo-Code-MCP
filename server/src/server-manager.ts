@@ -1,6 +1,7 @@
 import { ChildProcess, fork } from "child_process"
 import * as path from "path"
 import * as fs from "fs"
+import { isPortInUse, killProcessOnPort } from "./utils/port-utils"
 
 // Define a logger interface to allow for different logging implementations
 export interface Logger {
@@ -40,13 +41,30 @@ export class McpServerManager {
 	}
 
 	/**
-	 * Start the server
+	 * Start the server with port conflict handling
 	 * @returns A promise that resolves when the server is started
 	 */
 	async startServer(): Promise<void> {
 		if (this.serverProcess) {
 			this.logger.log("Server already running")
 			return
+		}
+
+		// Check if port is in use
+		const portInUse = await isPortInUse(this.serverPort)
+		if (portInUse) {
+			this.logger.log(
+				`Port ${this.serverPort} is already in use. Attempting to terminate the existing process...`,
+			)
+			await killProcessOnPort(this.serverPort, this.logger)
+
+			// Check again after killing
+			const stillInUse = await isPortInUse(this.serverPort)
+			if (stillInUse) {
+				throw new Error(
+					`Port ${this.serverPort} is still in use after attempting to kill the process. Please close the application using this port.`,
+				)
+			}
 		}
 
 		return new Promise<void>((resolve, reject) => {
