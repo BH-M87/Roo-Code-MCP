@@ -14,3 +14,7 @@
 ========
 
 通过 mcp 方式调用 roo-cline.newTask 的时候，能够提供一个 prompt 的参数，如果用户调用的时候提供了，则传给 handleNewTask 方法
+
+=========
+
+通过 mcp 执行 roo code 的命令的时候，roo code 在 vscode 的 webview 中的输出也要同时返回输出到 mcp client 中。

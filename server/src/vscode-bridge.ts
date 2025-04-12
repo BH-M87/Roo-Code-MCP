@@ -78,10 +78,24 @@ async function executeCommandViaProcess(command: string, args?: any[]): Promise<
 		// Create a timeout to reject the promise if no response is received
 		const timeout = setTimeout(() => {
 			reject(new Error(`Command execution timed out: ${command}`))
-		}, 30000) // 30 second timeout
+		}, 600 * 1000) // 600 second timeout
 
 		// Set up a one-time message handler for this request
 		const messageHandler = (message: CommunicationMessage) => {
+			// Handle streaming output
+			if (
+				message.type === MessageType.COMMAND_OUTPUT &&
+				"requestId" in message &&
+				message.requestId === requestId
+			) {
+				// Log the output
+				logger.log(`Command output: ${JSON.stringify(message.output)}`)
+
+				// Don't resolve/reject yet, just handle the output
+				return
+			}
+
+			// Handle final result or error
 			if (
 				(message.type === MessageType.COMMAND_RESULT &&
 					"requestId" in message &&
@@ -94,7 +108,7 @@ async function executeCommandViaProcess(command: string, args?: any[]): Promise<
 				process.removeListener("message", processMessageListener)
 
 				if (message.type === MessageType.COMMAND_RESULT) {
-					resolve(message.result)
+					resolve(message.output)
 				} else {
 					reject(new Error(message.error))
 				}
@@ -121,6 +135,7 @@ async function executeCommandViaProcess(command: string, args?: any[]): Promise<
 					type: MessageType.EXECUTE_COMMAND,
 					command,
 					args,
+					requestId,
 				}),
 			)
 		} else {
