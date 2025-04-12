@@ -6,6 +6,46 @@
 	"version": "0.2.0",
 	"configurations": [
 		{
+			"name": "Debug CLI",
+			"type": "node",
+			"request": "launch",
+			"program": "${workspaceFolder}/cli/dist/index.js",
+			"args": ["new", "Write a hello world function", "--mode", "code", "--verbose"],
+			"sourceMaps": true,
+			"outFiles": ["${workspaceFolder}/cli/dist/**/*.js"],
+			"preLaunchTask": "cli-build",
+			"cwd": "${workspaceFolder}",
+			"env": {
+				"NODE_ENV": "development"
+			},
+			"resolveSourceMapLocations": ["${workspaceFolder}/cli/**", "!**/node_modules/**"],
+			"presentation": {
+				"hidden": false,
+				"group": "cli",
+				"order": 1
+			}
+		},
+		{
+			"name": "Debug CLI Server",
+			"type": "node",
+			"request": "launch",
+			"program": "${workspaceFolder}/cli/dist/index.js",
+			"args": ["server", "--port", "3000"],
+			"sourceMaps": true,
+			"outFiles": ["${workspaceFolder}/cli/dist/**/*.js"],
+			"preLaunchTask": "cli-build",
+			"cwd": "${workspaceFolder}",
+			"env": {
+				"NODE_ENV": "development"
+			},
+			"resolveSourceMapLocations": ["${workspaceFolder}/cli/**", "!**/node_modules/**"],
+			"presentation": {
+				"hidden": false,
+				"group": "cli",
+				"order": 2
+			}
+		},
+		{
 			"name": "Run Extension",
 			"type": "extensionHost",
 			"request": "launch",
@@ -22,7 +62,7 @@
 			"presentation": {
 				"hidden": false,
 				"group": "tasks",
-				"order": 1
+				"order": 3
 			}
 		}
 	]

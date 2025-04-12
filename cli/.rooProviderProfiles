@@ -1,0 +1,23 @@
+{
+	"currentApiConfigName": "deepseek-v3",
+	"apiConfigs": {
+		"deepseek-v3": {
+			"apiProvider": "openai",
+			"openAiBaseUrl": "",
+			"openAiApiKey": "",
+			"openAiModelId": "deepseek-v3",
+			"openAiCustomModelInfo": {
+				"maxTokens": -1,
+				"contextWindow": 128000,
+				"supportsImages": true,
+				"supportsPromptCache": false,
+				"inputPrice": 0,
+				"outputPrice": 0
+			},
+			"id": "sxf3gw29ie"
+		}
+	},
+	"migrations": {
+		"rateLimitSecondsMigrated": true
+	}
+}

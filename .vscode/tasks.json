@@ -4,6 +4,18 @@
 	"version": "2.0.0",
 	"tasks": [
 		{
+			"label": "cli-build",
+			"type": "shell",
+			"command": "cd ${workspaceFolder}/cli && npm run build",
+			"group": "build",
+			"presentation": {
+				"reveal": "always",
+				"panel": "shared",
+				"group": "cli"
+			},
+			"problemMatcher": ["$tsc"]
+		},
+		{
 			"label": "watch",
 			"dependsOn": ["npm: dev", "npm: watch:tsc", "npm: watch:esbuild"],
 			"presentation": {
