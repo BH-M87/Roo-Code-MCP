@@ -26,7 +26,7 @@ dotenv.config()
 
 const program = new Command()
 
-program.name("roo").description("RooCode CLI - Execute AI tasks from the command line").version("1.0.0")
+program.name("roo").description("Roo CLI - Execute AI tasks from the command line").version("1.0.0")
 
 // New task command
 program
@@ -331,7 +331,7 @@ program
 // Start server command
 program
 	.command("server")
-	.description("Start the RooCode server")
+	.description("Start the Roo server")
 	.option("-p, --port <port>", "Port to listen on", "3000")
 	.option("-c, --provider-file <path>", "Path to provider profiles file")
 	.option("-s, --settings-file <path>", "Path to global settings file")
@@ -340,7 +340,7 @@ program
 		try {
 			const port = parseInt(options.port, 10)
 
-			printMessage(`Starting RooCode server on port ${port}...`, "info")
+			printMessage(`Starting Roo server on port ${port}...`, "info")
 
 			const server = await createServer(port, options.providerFile, options.settingsFile, options.modesFile)
 

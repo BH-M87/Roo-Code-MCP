@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  roo-cli:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: roo-cli
+    volumes:
+      - ${WORKSPACE_PATH:-./workspace}:/workspace
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+    ports:
+      - "3000:3000"  # 为 MCP 服务器暴露端口
+    working_dir: /workspace
+    # 默认命令可以在运行时覆盖
+    command: --help

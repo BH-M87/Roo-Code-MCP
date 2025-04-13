@@ -1,21 +1,96 @@
-# RooCode CLI
+# Roo CLI
 
 A command-line interface for RooCode, allowing you to execute AI tasks from the terminal.
 
 ## Installation
 
+### Local Installation
+
 ```bash
 # Install dependencies
-npm install
+pnpm install
 
 # Build the CLI
-npm run build
+pnpm build
 
 # Link the CLI globally (optional)
-npm link
+pnpm link
+```
+
+### Docker Installation
+
+You can also run Roo CLI using Docker:
+
+```bash
+# Clone the repository
+git clone https://github.com/your-username/roo-code-mcp.git
+cd roo-code-mcp/cli
+
+# Build the Docker image
+docker-compose build
 ```
 
 ## Usage
+
+### Running with Docker
+
+#### Using docker-compose
+
+You can use the provided scripts to run Roo CLI with docker-compose:
+
+```bash
+# Run a command (e.g., show help)
+./docker-run.sh --help
+
+# Create a new task
+./docker-run.sh new "Write a function to calculate the Fibonacci sequence" --mode code
+
+# Specify a custom workspace directory
+WORKSPACE_PATH=/path/to/your/workspace ./docker-run.sh new "Create a Node.js server"
+
+# Start the MCP server
+./docker-mcp-server.sh
+
+# Start the MCP server on a specific port
+PORT=3001 ./docker-mcp-server.sh
+```
+
+You can also use docker-compose directly:
+
+```bash
+# Run a command
+docker-compose run --rm roo-cli new "Write a function" --mode code
+
+# Mount a specific workspace directory
+WORKSPACE_PATH=/path/to/your/workspace docker-compose run --rm roo-cli new "Create a Node.js server"
+```
+
+#### Using Docker Standalone
+
+If you prefer not to use docker-compose, you can use the standalone Docker script:
+
+```bash
+# Build the Docker image
+./docker-run-standalone.sh --build
+
+# Show help information
+./docker-run-standalone.sh --help
+
+# Create a new task
+./docker-run-standalone.sh new "Write a function to calculate the Fibonacci sequence" --mode code
+
+# Specify a custom workspace directory
+./docker-run-standalone.sh --workspace /path/to/your/workspace new "Create a Node.js server"
+
+# Start the MCP server
+./docker-run-standalone.sh --mcp-server
+
+# Start the MCP server on a specific port
+./docker-run-standalone.sh --mcp-server --port 3001
+
+# Set API keys
+./docker-run-standalone.sh --openai-key "your-api-key" --anthropic-key "your-api-key" new "Your prompt"
+```
 
 ### Creating a New Task
 
@@ -75,7 +150,7 @@ roo tool list_files --params '{"path": ".", "recursive": "true"}' --cwd /path/to
 
 ### MCP Server
 
-The MCP (Model Context Protocol) server allows external clients to control RooCode CLI using the MCP protocol.
+The MCP (Model Context Protocol) server allows external clients to control Roo CLI using the MCP protocol.
 
 ```bash
 # Start the MCP server
@@ -216,6 +291,16 @@ ANTHROPIC_MODEL_ID=claude-3-5-sonnet-20241022
 OPENAI_API_KEY=your-api-key
 OPENAI_BASE_URL=https://api.openai.com/v1
 OPENAI_MODEL_ID=gpt-4
+
+# For Docker
+WORKSPACE_PATH=/path/to/your/workspace
+PORT=3000
+```
+
+When using Docker, you can pass environment variables directly to docker-compose:
+
+```bash
+OPENAI_API_KEY=your-api-key WORKSPACE_PATH=/path/to/workspace docker-compose run --rm roo-cli new "Your prompt"
 ```
 
 ## License
